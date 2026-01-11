@@ -18,8 +18,11 @@ class InMemoryCourseRepository implements CourseRepository {
       category: draft.category,
       totalLessons: draft.totalLessons,
       consumedLessons: draft.consumedLessons,
+      lessonDurationMinutes: draft.lessonDurationMinutes,
       startDate: draft.startDate,
       endDate: draft.endDate,
+      schedule: draft.schedule,
+      attendanceRecords: const [],
     );
     _items.insert(0, course);
     return course;

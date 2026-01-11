@@ -4,6 +4,8 @@ import '../../../core/app_scope.dart';
 import '../../../data/models/course.dart';
 import '../../widgets/course_card.dart';
 import '../course/course_create_page.dart';
+import '../course/course_detail_page.dart';
+import '../attendance/course_attendance_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -45,9 +47,37 @@ class HomePage extends StatelessWidget {
                     }
 
                     final course = courses[index - 1];
-                    return CourseCard(
-                      data: _toCardData(course),
-                      onTap: () {},
+                    final now = DateTime.now();
+                    final canCheckIn = _canCheckIn(course, now);
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        CourseCard(
+                          data: _toCardData(course),
+                          onTap: () => _openDetail(context, course),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: FilledButton(
+                                onPressed: canCheckIn
+                                    ? () => _checkIn(context, course)
+                                    : null,
+                                child: const Text('打卡'),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () =>
+                                    _openAttendance(context, course, true),
+                                child: const Text('打卡记录'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     );
                   },
                 );
@@ -72,15 +102,70 @@ class HomePage extends StatelessWidget {
     final total = course.totalLessons;
 
     final expiringByRemaining = remaining <= 2;
-    final expiringByDate = course.endDate != null && course.endDate!.difference(now).inDays <= 7;
+    final expiringByDate =
+        course.endDate != null && course.endDate!.difference(now).inDays <= 7;
+
+    final next = course.schedule.nextSession(now);
+    final nextLabel = next == null ? '下一次：未设置' : '下一次：${_formatDateTime(next)}';
+    final repeatLabel = course.schedule.repeatSummaryLabel();
+    final makeupLabel = course.schedule.makeUpMethod.label;
 
     return CourseCardData(
       title: course.title,
       category: course.category,
       remaining: remaining,
       total: total,
-      nextLessonLabel: '下一次：未设置（下一步做排课）',
+      nextLessonLabel: '$nextLabel（$repeatLabel｜$makeupLabel）',
       isExpiring: expiringByRemaining || expiringByDate,
+    );
+  }
+
+  String _formatDateTime(DateTime dt) {
+    final h = dt.hour.toString().padLeft(2, '0');
+    final m = dt.minute.toString().padLeft(2, '0');
+    return '${dt.month}月${dt.day}日 $h:$m';
+  }
+
+  bool _canCheckIn(Course course, DateTime now) {
+    final sessions = course.schedule.sessionsOnDay(now);
+    if (sessions.isEmpty) return false;
+    final duration = Duration(minutes: course.lessonDurationMinutes);
+    for (final s in sessions) {
+      final startWindow = s.subtract(const Duration(hours: 1));
+      final endWindow = s.add(duration + const Duration(hours: 1));
+      if (now.isAfter(startWindow) && now.isBefore(endWindow)) return true;
+    }
+    return false;
+  }
+
+  void _checkIn(BuildContext context, Course course) {
+    final store = AppScope.of(context);
+    final now = DateTime.now();
+    final sessions = course.schedule.sessionsOnDay(now);
+    if (sessions.isEmpty) return;
+    store.checkIn(course.id, sessions.first);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('打卡成功，课时 -1')),
+    );
+  }
+
+  void _openAttendance(
+    BuildContext context,
+    Course course,
+    bool makeUpMode,
+  ) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CourseAttendancePage(course: course, makeUp: makeUpMode),
+      ),
+    );
+  }
+
+  void _openDetail(BuildContext context, Course course) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CourseDetailPage(course: course),
+      ),
     );
   }
 }
@@ -97,9 +182,9 @@ class _AppBrandTitle extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(6),
           child: Image.asset(
-            'assets/images/logo.png',
-            width: 32,
-            height: 32,
+            'assets/images/app_logo.png',
+            width: 40,
+            height: 40,
             fit: BoxFit.cover,
           ),
         ),
@@ -117,7 +202,7 @@ class _AppBrandTitle extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                '您的课程提醒全能助手',
+                '智能课时记录与提醒助手',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -150,10 +235,10 @@ class _Header extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          Wrap(
+          const Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: const [
+            children: [
               _FilterChip(label: '全部', selected: true),
               _FilterChip(label: '即将到期'),
               _FilterChip(label: '本周有课'),
@@ -174,8 +259,11 @@ class _FilterChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final background = selected ? theme.colorScheme.primary : theme.colorScheme.surfaceContainerHighest;
-    final foreground = selected ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface;
+    final background = selected
+        ? theme.colorScheme.primary
+        : theme.colorScheme.surfaceContainerHighest;
+    final foreground =
+        selected ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

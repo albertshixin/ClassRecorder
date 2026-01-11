@@ -1,6 +1,4 @@
-﻿import 'dart:ui' show FontFeature;
-
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 class CourseCardData {
   const CourseCardData({
@@ -39,9 +37,8 @@ class CourseCard extends StatelessWidget {
     final remainingText = _formatLessonCount(data.remaining);
     final totalText = _formatLessonCount(data.total);
 
-    final statusColor = data.isExpiring
-        ? theme.colorScheme.error
-        : theme.colorScheme.primary;
+    final statusColor =
+        data.isExpiring ? theme.colorScheme.error : theme.colorScheme.primary;
 
     return Card(
       clipBehavior: Clip.antiAlias,

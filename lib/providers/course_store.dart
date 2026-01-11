@@ -4,7 +4,8 @@ import '../data/models/course.dart';
 import '../data/repositories/course_repository.dart';
 
 class CourseStore extends ChangeNotifier {
-  CourseStore({required CourseRepository repository}) : _repository = repository {
+  CourseStore({required CourseRepository repository})
+      : _repository = repository {
     _courses = _repository.list();
   }
 
@@ -27,6 +28,30 @@ class CourseStore extends ChangeNotifier {
   void update(Course course) {
     _repository.update(course);
     refresh();
+  }
+
+  void checkIn(String courseId, DateTime sessionStart, {bool makeUp = false}) {
+    final index = _courses.indexWhere((c) => c.id == courseId);
+    if (index == -1) return;
+    final course = _courses[index];
+
+    final delta = makeUp ? -1 : 1;
+    final newConsumed = (course.consumedLessons + delta)
+        .clamp(0, course.totalLessons)
+        .toDouble();
+
+    final updated = course.copyWith(
+      consumedLessons: newConsumed,
+      attendanceRecords: [
+        ...course.attendanceRecords,
+        CourseAttendanceRecord(
+          sessionStart: sessionStart,
+          status: AttendanceStatus.attended,
+        ),
+      ],
+    );
+
+    update(updated);
   }
 
   void delete(String id) {

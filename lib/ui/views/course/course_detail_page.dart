@@ -3,48 +3,71 @@ import 'package:flutter/material.dart';
 import '../../../core/app_scope.dart';
 import '../../../data/models/course.dart';
 
-class CourseCreatePage extends StatefulWidget {
-  const CourseCreatePage({super.key});
+class CourseDetailPage extends StatefulWidget {
+  const CourseDetailPage({super.key, required this.course});
 
-  static const routeName = '/course/create';
+  static const routeName = '/course/detail';
+
+  final Course course;
 
   @override
-  State<CourseCreatePage> createState() => _CourseCreatePageState();
+  State<CourseDetailPage> createState() => _CourseDetailPageState();
 }
 
-class _CourseCreatePageState extends State<CourseCreatePage> {
+class _CourseDetailPageState extends State<CourseDetailPage> {
   final _formKey = GlobalKey<FormState>();
-  final _titleController = TextEditingController();
-  final _totalController = TextEditingController(text: '20');
-  final _consumedController = TextEditingController(text: '0');
-  final _durationController = TextEditingController(text: '60');
+  late final TextEditingController _titleController;
+  late final TextEditingController _totalController;
+  late final TextEditingController _consumedController;
+  late final TextEditingController _durationController;
 
-  String _category = '音乐';
-
+  late String _category;
   DateTime? _initialSession;
-  CourseRepeatPattern _repeatPattern = CourseRepeatPattern.none;
-  CourseMakeUpMethod _makeUpMethod = CourseMakeUpMethod.autoPostpone;
-
-  final List<WeeklyCourseTime> _weeklySlots = [];
-  final List<MonthlyCourseTime> _monthlySlots = [];
-
+  late CourseRepeatPattern _repeatPattern;
+  late CourseMakeUpMethod _makeUpMethod;
+  late List<WeeklyCourseTime> _weeklySlots;
+  late List<MonthlyCourseTime> _monthlySlots;
   String? _scheduleError;
+  bool _editing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final c = widget.course;
+    _titleController = TextEditingController(text: c.title);
+    _totalController = TextEditingController(text: c.totalLessons.toString());
+    _consumedController =
+        TextEditingController(text: c.consumedLessons.toString());
+    _durationController =
+        TextEditingController(text: c.lessonDurationMinutes.toString());
+
+    _category = c.category;
+    _initialSession = c.schedule.initialSession;
+    _repeatPattern = c.schedule.repeatPattern;
+    _makeUpMethod = c.schedule.makeUpMethod;
+    _weeklySlots = List<WeeklyCourseTime>.from(c.schedule.weeklySlots);
+    _monthlySlots = List<MonthlyCourseTime>.from(c.schedule.monthlySlots);
+  }
 
   @override
   void dispose() {
     _titleController.dispose();
     _totalController.dispose();
     _consumedController.dispose();
+    _durationController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final primaryStyle = TextStyle(
+      color: _editing ? theme.colorScheme.primary : theme.colorScheme.onSurface,
+    );
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('新建课程'),
+        title: const Text('课程详情'),
       ),
       body: SafeArea(
         child: ListView(
@@ -56,23 +79,21 @@ class _CourseCreatePageState extends State<CourseCreatePage> {
                 children: [
                   TextFormField(
                     controller: _titleController,
+                    enabled: _editing,
                     decoration: const InputDecoration(
                       labelText: '课程名称',
-                      hintText: '例如：钢琴课 / 英语一对一',
                       border: OutlineInputBorder(),
                     ),
-                    textInputAction: TextInputAction.next,
+                    style: primaryStyle,
                     validator: (v) {
                       final value = (v ?? '').trim();
-                      if (value.isEmpty) {
-                        return '请输入课程名称';
-                      }
+                      if (value.isEmpty) return '请输入课程名称';
                       return null;
                     },
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    key: ValueKey('create-cat-$_category'),
+                    key: ValueKey('category-$_category-$_editing'),
                     initialValue: _category,
                     items: const [
                       DropdownMenuItem(value: '音乐', child: Text('音乐')),
@@ -81,14 +102,17 @@ class _CourseCreatePageState extends State<CourseCreatePage> {
                       DropdownMenuItem(value: '艺术', child: Text('艺术')),
                       DropdownMenuItem(value: '其他', child: Text('其他')),
                     ],
-                    onChanged: (v) {
-                      if (v == null) return;
-                      setState(() => _category = v);
-                    },
+                    onChanged: _editing
+                        ? (v) {
+                            if (v == null) return;
+                            setState(() => _category = v);
+                          }
+                        : null,
                     decoration: const InputDecoration(
                       labelText: '类型标签',
                       border: OutlineInputBorder(),
                     ),
+                    style: primaryStyle,
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -96,13 +120,14 @@ class _CourseCreatePageState extends State<CourseCreatePage> {
                       Expanded(
                         child: TextFormField(
                           controller: _totalController,
+                          enabled: _editing,
                           decoration: const InputDecoration(
                             labelText: '总课时',
                             border: OutlineInputBorder(),
                           ),
-                          keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true),
-                          onChanged: (_) => setState(() {}),
+                          style: primaryStyle,
+                          keyboardType:
+                              const TextInputType.numberWithOptions(decimal: true),
                           validator: (v) {
                             final value = double.tryParse((v ?? '').trim());
                             if (value == null) return '请输入数字';
@@ -115,13 +140,14 @@ class _CourseCreatePageState extends State<CourseCreatePage> {
                       Expanded(
                         child: TextFormField(
                           controller: _consumedController,
+                          enabled: _editing,
                           decoration: const InputDecoration(
-                            labelText: '已上课时（可选）',
+                            labelText: '已上课时',
                             border: OutlineInputBorder(),
                           ),
-                          keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true),
-                          onChanged: (_) => setState(() {}),
+                          style: primaryStyle,
+                          keyboardType:
+                              const TextInputType.numberWithOptions(decimal: true),
                           validator: (v) {
                             final value = double.tryParse((v ?? '').trim());
                             if (value == null) return '请输入数字';
@@ -140,11 +166,12 @@ class _CourseCreatePageState extends State<CourseCreatePage> {
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _durationController,
+                    enabled: _editing,
                     decoration: const InputDecoration(
                       labelText: '课程时长（分钟）',
-                      hintText: '默认 60',
                       border: OutlineInputBorder(),
                     ),
+                    style: primaryStyle,
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: false),
                     validator: (v) {
@@ -160,7 +187,7 @@ class _CourseCreatePageState extends State<CourseCreatePage> {
                   _buildInitialSessionTile(theme),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<CourseRepeatPattern>(
-                    key: ValueKey('create-repeat-$_repeatPattern'),
+                    key: ValueKey('repeat-$_repeatPattern-$_editing'),
                     initialValue: _repeatPattern,
                     items: CourseRepeatPattern.values
                         .map(
@@ -170,17 +197,20 @@ class _CourseCreatePageState extends State<CourseCreatePage> {
                           ),
                         )
                         .toList(),
-                    onChanged: (v) {
-                      if (v == null) return;
-                      setState(() {
-                        _repeatPattern = v;
-                        _scheduleError = null;
-                      });
-                    },
+                    onChanged: _editing
+                        ? (v) {
+                            if (v == null) return;
+                            setState(() {
+                              _repeatPattern = v;
+                              _scheduleError = null;
+                            });
+                          }
+                        : null,
                     decoration: const InputDecoration(
                       labelText: '重复模式',
                       border: OutlineInputBorder(),
                     ),
+                    style: primaryStyle,
                   ),
                   const SizedBox(height: 12),
                   if (_repeatPattern == CourseRepeatPattern.weekly) ...[
@@ -192,7 +222,7 @@ class _CourseCreatePageState extends State<CourseCreatePage> {
                     const SizedBox(height: 12),
                   ],
                   DropdownButtonFormField<CourseMakeUpMethod>(
-                    key: ValueKey('create-makeup-$_makeUpMethod'),
+                    key: ValueKey('makeup-$_makeUpMethod-$_editing'),
                     initialValue: _makeUpMethod,
                     items: CourseMakeUpMethod.values
                         .map(
@@ -202,27 +232,33 @@ class _CourseCreatePageState extends State<CourseCreatePage> {
                           ),
                         )
                         .toList(),
-                    onChanged: (v) {
-                      if (v == null) return;
-                      setState(() => _makeUpMethod = v);
-                    },
+                    onChanged: _editing
+                        ? (v) {
+                            if (v == null) return;
+                            setState(() => _makeUpMethod = v);
+                          }
+                        : null,
                     decoration: const InputDecoration(
                       labelText: '补课方式',
                       border: OutlineInputBorder(),
                     ),
+                    style: primaryStyle,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
-                    key: ValueKey(_computeEndDateLabel()),
                     enabled: false,
                     initialValue: _computeEndDateLabel() ?? '无法计算',
                     style: TextStyle(
-                      color: theme.colorScheme.primary,
+                      color: _editing
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurface,
                       fontWeight: FontWeight.w600,
                     ),
                     decoration: InputDecoration(
                       labelText: '预计结束日期',
-                      labelStyle: TextStyle(color: theme.colorScheme.onSurface),
+                      labelStyle: TextStyle(
+                        color: theme.colorScheme.onSurface,
+                      ),
                       border: const OutlineInputBorder(),
                       hintText: '根据课时与排课自动计算',
                       suffixIcon: _computeEndDateLabel() == null
@@ -243,16 +279,27 @@ class _CourseCreatePageState extends State<CourseCreatePage> {
                       ),
                     ),
                   ],
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: _onSubmit,
-                      icon: const Icon(Icons.check),
-                      label: const Text('创建'),
-                    ),
-                  ),
                 ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        child: Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => setState(() => _editing = true),
+                child: const Text('修改'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: FilledButton(
+                onPressed: _editing ? _onSave : null,
+                child: const Text('保存'),
               ),
             ),
           ],
@@ -262,11 +309,12 @@ class _CourseCreatePageState extends State<CourseCreatePage> {
   }
 
   Widget _buildInitialSessionTile(ThemeData theme) {
-    final label =
-        _initialSession == null ? '未设置' : _formatDate(_initialSession!);
+    final label = _initialSession == null
+        ? '未设置'
+        : _formatDate(_initialSession!);
     return InkWell(
       borderRadius: BorderRadius.circular(12),
-      onTap: _pickInitialSession,
+      onTap: _editing ? _pickInitialSession : null,
       child: Ink(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
@@ -301,7 +349,9 @@ class _CourseCreatePageState extends State<CourseCreatePage> {
             Text(
               '选择',
               style: theme.textTheme.labelLarge?.copyWith(
-                color: theme.colorScheme.primary,
+                color: _editing
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -320,15 +370,16 @@ class _CourseCreatePageState extends State<CourseCreatePage> {
             Expanded(
               child: Text(
                 '按周时间（可多个）',
-                style: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w800),
+                style:
+                    theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
               ),
             ),
-            TextButton.icon(
-              onPressed: _addWeeklySlot,
-              icon: const Icon(Icons.add),
-              label: const Text('添加'),
-            ),
+            if (_editing)
+              TextButton.icon(
+                onPressed: _addWeeklySlot,
+                icon: const Icon(Icons.add),
+                label: const Text('添加'),
+              ),
           ],
         ),
         const SizedBox(height: 6),
@@ -348,6 +399,7 @@ class _CourseCreatePageState extends State<CourseCreatePage> {
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<int>(
+                        key: ValueKey('w-$index-${slot.weekday}-$_editing'),
                         initialValue: slot.weekday,
                         items: kCourseWeekdayOrder
                             .map(
@@ -357,16 +409,18 @@ class _CourseCreatePageState extends State<CourseCreatePage> {
                               ),
                             )
                             .toList(),
-                        onChanged: (v) {
-                          if (v == null) return;
-                          setState(() {
-                            _weeklySlots[index] = WeeklyCourseTime(
-                              weekday: v,
-                              time: slot.time,
-                            );
-                            _scheduleError = null;
-                          });
-                        },
+                        onChanged: _editing
+                            ? (v) {
+                                if (v == null) return;
+                                setState(() {
+                                  _weeklySlots[index] = WeeklyCourseTime(
+                                    weekday: v,
+                                    time: slot.time,
+                                  );
+                                  _scheduleError = null;
+                                });
+                              }
+                            : null,
                         decoration: const InputDecoration(
                           labelText: '星期',
                           border: OutlineInputBorder(),
@@ -376,22 +430,24 @@ class _CourseCreatePageState extends State<CourseCreatePage> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: () => _pickWeeklySlotTime(index),
+                        onPressed:
+                            _editing ? () => _pickWeeklySlotTime(index) : null,
                         icon: const Icon(Icons.access_time),
                         label: Text(slot.time.format24h()),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    IconButton(
-                      onPressed: () {
-                        setState(() {
-                          _weeklySlots.removeAt(index);
-                          _scheduleError = null;
-                        });
-                      },
-                      tooltip: '删除',
-                      icon: const Icon(Icons.close),
-                    ),
+                    if (_editing)
+                      IconButton(
+                        onPressed: () {
+                          setState(() {
+                            _weeklySlots.removeAt(index);
+                            _scheduleError = null;
+                          });
+                        },
+                        tooltip: '删除',
+                        icon: const Icon(Icons.close),
+                      ),
                   ],
                 ),
               );
@@ -412,15 +468,16 @@ class _CourseCreatePageState extends State<CourseCreatePage> {
             Expanded(
               child: Text(
                 '按月时间（可多个）',
-                style: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w800),
+                style:
+                    theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
               ),
             ),
-            TextButton.icon(
-              onPressed: _addMonthlySlot,
-              icon: const Icon(Icons.add),
-              label: const Text('添加'),
-            ),
+            if (_editing)
+              TextButton.icon(
+                onPressed: _addMonthlySlot,
+                icon: const Icon(Icons.add),
+                label: const Text('添加'),
+              ),
           ],
         ),
         const SizedBox(height: 6),
@@ -440,6 +497,7 @@ class _CourseCreatePageState extends State<CourseCreatePage> {
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<int>(
+                        key: ValueKey('m-$index-${slot.day}-$_editing'),
                         initialValue: slot.day,
                         items: days
                             .map(
@@ -449,16 +507,18 @@ class _CourseCreatePageState extends State<CourseCreatePage> {
                               ),
                             )
                             .toList(),
-                        onChanged: (v) {
-                          if (v == null) return;
-                          setState(() {
-                            _monthlySlots[index] = MonthlyCourseTime(
-                              day: v,
-                              time: slot.time,
-                            );
-                            _scheduleError = null;
-                          });
-                        },
+                        onChanged: _editing
+                            ? (v) {
+                                if (v == null) return;
+                                setState(() {
+                                  _monthlySlots[index] = MonthlyCourseTime(
+                                    day: v,
+                                    time: slot.time,
+                                  );
+                                  _scheduleError = null;
+                                });
+                              }
+                            : null,
                         decoration: const InputDecoration(
                           labelText: '日期',
                           border: OutlineInputBorder(),
@@ -468,22 +528,24 @@ class _CourseCreatePageState extends State<CourseCreatePage> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: () => _pickMonthlySlotTime(index),
+                        onPressed:
+                            _editing ? () => _pickMonthlySlotTime(index) : null,
                         icon: const Icon(Icons.access_time),
                         label: Text(slot.time.format24h()),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    IconButton(
-                      onPressed: () {
-                        setState(() {
-                          _monthlySlots.removeAt(index);
-                          _scheduleError = null;
-                        });
-                      },
-                      tooltip: '删除',
-                      icon: const Icon(Icons.close),
-                    ),
+                    if (_editing)
+                      IconButton(
+                        onPressed: () {
+                          setState(() {
+                            _monthlySlots.removeAt(index);
+                            _scheduleError = null;
+                          });
+                        },
+                        tooltip: '删除',
+                        icon: const Icon(Icons.close),
+                      ),
                   ],
                 ),
               );
@@ -499,18 +561,14 @@ class _CourseCreatePageState extends State<CourseCreatePage> {
 
     final date = await showDatePicker(
       context: context,
-      initialDate:
-          DateTime(initialDate.year, initialDate.month, initialDate.day),
+      initialDate: DateTime(initialDate.year, initialDate.month, initialDate.day),
       firstDate: DateTime(now.year - 1, 1, 1),
       lastDate: DateTime(now.year + 5, 12, 31),
       helpText: '选择开始上课日期',
     );
-    if (date == null) return;
-
-    if (!mounted) return;
+    if (date == null || !mounted) return;
 
     setState(() {
-      // 时间统一置 00:00，表示仅记录日期。
       _initialSession = DateTime(date.year, date.month, date.day);
       _scheduleError = null;
     });
@@ -547,9 +605,7 @@ class _CourseCreatePageState extends State<CourseCreatePage> {
       initialTime: TimeOfDay(hour: slot.time.hour, minute: slot.time.minute),
       helpText: '选择时间',
     );
-    if (time == null) return;
-
-    if (!mounted) return;
+    if (time == null || !mounted) return;
 
     setState(() {
       _weeklySlots[index] = WeeklyCourseTime(
@@ -567,9 +623,7 @@ class _CourseCreatePageState extends State<CourseCreatePage> {
       initialTime: TimeOfDay(hour: slot.time.hour, minute: slot.time.minute),
       helpText: '选择时间',
     );
-    if (time == null) return;
-
-    if (!mounted) return;
+    if (time == null || !mounted) return;
 
     setState(() {
       _monthlySlots[index] = MonthlyCourseTime(
@@ -580,61 +634,37 @@ class _CourseCreatePageState extends State<CourseCreatePage> {
     });
   }
 
-  void _onSubmit() {
+  void _onSave() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-
     if (!_validateSchedule()) return;
 
-    final title = _titleController.text.trim();
+    final store = AppScope.of(context);
     final total = double.parse(_totalController.text.trim());
     final consumed = double.parse(_consumedController.text.trim());
     final duration = int.parse(_durationController.text.trim());
 
-    final schedule = _currentDraftSchedule();
-
-    final store = AppScope.of(context);
-    store.create(
-      CourseDraft(
-        title: title,
-        category: _category,
-        totalLessons: total,
-        consumedLessons: consumed,
-        lessonDurationMinutes: duration,
-        schedule: schedule,
-      ),
-    );
-
-    Navigator.of(context).pop();
-  }
-
-  CourseSchedule _currentDraftSchedule() {
-    return CourseSchedule(
+    final schedule = CourseSchedule(
       initialSession: _initialSession,
       repeatPattern: _repeatPattern,
       weeklySlots: List<WeeklyCourseTime>.from(_weeklySlots),
       monthlySlots: List<MonthlyCourseTime>.from(_monthlySlots),
       makeUpMethod: _makeUpMethod,
     );
-  }
 
-  String? _computeEndDateLabel() {
-    final total = double.tryParse(_totalController.text.trim());
-    final consumed = double.tryParse(_consumedController.text.trim());
-    if (total == null || consumed == null) return null;
-    final remaining = (total - consumed).ceil();
-    if (remaining <= 0) return '已上完';
+    final updated = widget.course.copyWith(
+      title: _titleController.text.trim(),
+      category: _category,
+      totalLessons: total,
+      consumedLessons: consumed,
+      lessonDurationMinutes: duration,
+      schedule: schedule,
+    );
 
-    final schedule = _currentDraftSchedule();
-    DateTime reference = _initialSession ?? DateTime.now();
-    DateTime? next = schedule.nextSession(reference);
-    if (next == null) return null;
-    DateTime last = next;
-    for (int i = 1; i < remaining; i++) {
-      next = schedule.nextSession(last.add(const Duration(minutes: 1)));
-      if (next == null) break;
-      last = next;
-    }
-    return '${last.year}年${last.month}月${last.day}日';
+    store.update(updated);
+    setState(() => _editing = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('保存成功')),
+    );
   }
 
   bool _validateSchedule() {
@@ -646,11 +676,11 @@ class _CourseCreatePageState extends State<CourseCreatePage> {
       }
     } else if (_repeatPattern == CourseRepeatPattern.weekly) {
       if (_weeklySlots.isEmpty) {
-        error = '请选择按周的上课时间（可多个，如：周一 14:00 / 周五 10:00）';
+        error = '请选择按周的上课时间（可多个，例如：周一 14:00 / 周五 10:00）';
       }
     } else if (_repeatPattern == CourseRepeatPattern.monthly) {
       if (_monthlySlots.isEmpty) {
-        error = '请选择按月的上课时间（可多个，如：10号 18:00 / 16号 16:00）';
+        error = '请选择按月的上课时间（可多个，例如：10号 18:00 / 16号 16:00）';
       }
     }
 
@@ -660,6 +690,33 @@ class _CourseCreatePageState extends State<CourseCreatePage> {
 
   String _formatDate(DateTime dt) {
     return '${dt.month}月${dt.day}日';
+  }
+
+  String? _computeEndDateLabel() {
+    final total = double.tryParse(_totalController.text.trim());
+    final consumed = double.tryParse(_consumedController.text.trim());
+    if (total == null || consumed == null) return null;
+    final remaining = (total - consumed).ceil();
+    if (remaining <= 0) return '已上完';
+
+    final schedule = CourseSchedule(
+      initialSession: _initialSession,
+      repeatPattern: _repeatPattern,
+      weeklySlots: List<WeeklyCourseTime>.from(_weeklySlots),
+      monthlySlots: List<MonthlyCourseTime>.from(_monthlySlots),
+      makeUpMethod: _makeUpMethod,
+    );
+
+    DateTime reference = _initialSession ?? DateTime.now();
+    DateTime? next = schedule.nextSession(reference);
+    if (next == null) return null;
+    DateTime last = next;
+    for (int i = 1; i < remaining; i++) {
+      next = schedule.nextSession(last.add(const Duration(minutes: 1)));
+      if (next == null) break;
+      last = next;
+    }
+    return '${last.year}年${last.month}月${last.day}日';
   }
 }
 
