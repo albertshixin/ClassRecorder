@@ -1,4 +1,5 @@
-﻿const Map<int, String> kCourseWeekdayLabels = {
+﻿
+const Map<int, String> kCourseWeekdayLabels = {
   DateTime.monday: '周一',
   DateTime.tuesday: '周二',
   DateTime.wednesday: '周三',
@@ -64,6 +65,18 @@ class ClassTimeOfDay {
     final m = minute.toString().padLeft(2, '0');
     return '$h:$m';
   }
+
+  Map<String, dynamic> toJson() => {
+        'hour': hour,
+        'minute': minute,
+      };
+
+  factory ClassTimeOfDay.fromJson(Map<String, dynamic> json) {
+    return ClassTimeOfDay(
+      hour: (json['hour'] as num?)?.toInt() ?? 0,
+      minute: (json['minute'] as num?)?.toInt() ?? 0,
+    );
+  }
 }
 
 class WeeklyCourseTime {
@@ -91,6 +104,20 @@ class WeeklyCourseTime {
   }
 
   String formatLabel() => '${courseWeekdayLabel(weekday)} ${time.format24h()}';
+
+  Map<String, dynamic> toJson() => {
+        'weekday': weekday,
+        'time': time.toJson(),
+      };
+
+  factory WeeklyCourseTime.fromJson(Map<String, dynamic> json) {
+    return WeeklyCourseTime(
+      weekday: (json['weekday'] as num?)?.toInt() ?? DateTime.monday,
+      time: ClassTimeOfDay.fromJson(
+        (json['time'] as Map<String, dynamic>? ?? const {}),
+      ),
+    );
+  }
 }
 
 class MonthlyCourseTime {
@@ -121,6 +148,20 @@ class MonthlyCourseTime {
   }
 
   String formatLabel() => '$day号 ${time.format24h()}';
+
+  Map<String, dynamic> toJson() => {
+        'day': day,
+        'time': time.toJson(),
+      };
+
+  factory MonthlyCourseTime.fromJson(Map<String, dynamic> json) {
+    return MonthlyCourseTime(
+      day: (json['day'] as num?)?.toInt() ?? 1,
+      time: ClassTimeOfDay.fromJson(
+        (json['time'] as Map<String, dynamic>? ?? const {}),
+      ),
+    );
+  }
 }
 
 class CourseSchedule {
@@ -239,6 +280,31 @@ class CourseSchedule {
     final suffix = items.length > maxItems ? '…' : '';
     return '按月：$shown$suffix';
   }
+
+  Map<String, dynamic> toJson() => {
+        'initialSession': initialSession?.toIso8601String(),
+        'repeatPattern': repeatPattern.name,
+        'weeklySlots': weeklySlots.map((e) => e.toJson()).toList(),
+        'monthlySlots': monthlySlots.map((e) => e.toJson()).toList(),
+        'makeUpMethod': makeUpMethod.name,
+      };
+
+  factory CourseSchedule.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return const CourseSchedule();
+    return CourseSchedule(
+      initialSession: _parseDate(json['initialSession']),
+      repeatPattern: _repeatPatternFrom(json['repeatPattern'] as String?),
+      weeklySlots: (json['weeklySlots'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(WeeklyCourseTime.fromJson)
+          .toList(),
+      monthlySlots: (json['monthlySlots'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(MonthlyCourseTime.fromJson)
+          .toList(),
+      makeUpMethod: _makeUpMethodFrom(json['makeUpMethod'] as String?),
+    );
+  }
 }
 
 class Course {
@@ -294,6 +360,40 @@ class Course {
       attendanceRecords: attendanceRecords ?? this.attendanceRecords,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'category': category,
+        'totalLessons': totalLessons,
+        'consumedLessons': consumedLessons,
+        'lessonDurationMinutes': lessonDurationMinutes,
+        'startDate': startDate?.toIso8601String(),
+        'endDate': endDate?.toIso8601String(),
+        'schedule': schedule.toJson(),
+        'attendanceRecords': attendanceRecords.map((e) => e.toJson()).toList(),
+      };
+
+  factory Course.fromJson(String id, Map<String, dynamic> json) {
+    return Course(
+      id: id,
+      title: json['title'] as String? ?? '',
+      category: json['category'] as String? ?? '',
+      totalLessons: (json['totalLessons'] as num?)?.toDouble() ?? 0,
+      consumedLessons: (json['consumedLessons'] as num?)?.toDouble() ?? 0,
+      lessonDurationMinutes: (json['lessonDurationMinutes'] as num?)?.toInt() ?? 60,
+      startDate: _parseDate(json['startDate']),
+      endDate: _parseDate(json['endDate']),
+      schedule: CourseSchedule.fromJson(
+        json['schedule'] as Map<String, dynamic>?,
+      ),
+      attendanceRecords:
+          (json['attendanceRecords'] as List<dynamic>? ?? const [])
+              .whereType<Map<String, dynamic>>()
+              .map(CourseAttendanceRecord.fromJson)
+              .toList(),
+    );
+  }
 }
 
 class CourseDraft {
@@ -328,4 +428,44 @@ class CourseAttendanceRecord {
 
   final DateTime sessionStart;
   final AttendanceStatus status;
+
+  Map<String, dynamic> toJson() => {
+        'sessionStart': sessionStart.toIso8601String(),
+        'status': status.name,
+      };
+
+  factory CourseAttendanceRecord.fromJson(Map<String, dynamic> json) {
+    return CourseAttendanceRecord(
+      sessionStart: _parseDate(json['sessionStart']) ?? DateTime.now(),
+      status: _attendanceStatusFrom(json['status'] as String?),
+    );
+  }
 }
+
+CourseRepeatPattern _repeatPatternFrom(String? value) {
+  return CourseRepeatPattern.values.firstWhere(
+    (e) => e.name == value,
+    orElse: () => CourseRepeatPattern.none,
+  );
+}
+
+CourseMakeUpMethod _makeUpMethodFrom(String? value) {
+  return CourseMakeUpMethod.values.firstWhere(
+    (e) => e.name == value,
+    orElse: () => CourseMakeUpMethod.autoPostpone,
+  );
+}
+
+AttendanceStatus _attendanceStatusFrom(String? value) {
+  return AttendanceStatus.values.firstWhere(
+    (e) => e.name == value,
+    orElse: () => AttendanceStatus.attended,
+  );
+}
+
+DateTime? _parseDate(dynamic value) {
+  if (value == null) return null;
+  if (value is DateTime) return value;  if (value is String) return DateTime.tryParse(value);
+  return null;
+}
+

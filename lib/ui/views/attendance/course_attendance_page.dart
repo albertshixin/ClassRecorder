@@ -143,7 +143,7 @@ class _Calendar extends StatelessWidget {
                       ),
                     );
                     if (confirm != true || !context.mounted) return;
-                    store.setLeave(course.id, sessions.first, leave: !hasLeave);
+                    await store.setLeave(course.id, sessions.first, leave: !hasLeave);
                   } else {
                     if (hasAttended) {
                       final confirm = await showDialog<bool>(
@@ -167,7 +167,7 @@ class _Calendar extends StatelessWidget {
                       // 使用已存在的出勤记录时间，若无则fallback当天第一节课
                       final attendedRecord = recorded
                           .firstWhere((r) => r.status == AttendanceStatus.attended, orElse: () => CourseAttendanceRecord(sessionStart: sessions.first, status: AttendanceStatus.attended));
-                      store.removeCheckIn(course.id, attendedRecord.sessionStart);
+                      await store.removeCheckIn(course.id, attendedRecord.sessionStart);
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('已取消补卡，课时 +1')),
                       );
@@ -192,7 +192,7 @@ class _Calendar extends StatelessWidget {
                     );
                     if (confirm != true) return;
                     if (!context.mounted) return;
-                    store.checkIn(course.id, sessions.first, makeUp: false);
+                    await store.checkIn(course.id, sessions.first, makeUp: false);
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('\u8865\u5361\u6210\u529f\uff0c\u8bfe\u65f6 -1')),
                     );
@@ -449,6 +449,7 @@ class _LegendItem {
   final Color color;
   final bool outlined;
 }
+
 
 
 

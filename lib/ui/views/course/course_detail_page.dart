@@ -661,7 +661,7 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
     });
   }
 
-  void _onSave() {
+  Future<void> _onSave() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (!_validateSchedule()) return;
 
@@ -691,7 +691,7 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
       schedule: schedule,
     );
 
-    store.update(updated);
+    await store.update(updated);
     setState(() => _editing = false);
     if (mounted) {
       Navigator.of(context).pop();
@@ -778,5 +778,6 @@ class _SectionTitle extends StatelessWidget {
     );
   }
 }
+
 
 

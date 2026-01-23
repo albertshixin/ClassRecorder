@@ -1,4 +1,6 @@
-﻿import 'package:flutter/foundation.dart';
+﻿import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 
 import '../data/models/course.dart';
 import '../data/repositories/course_repository.dart';
@@ -6,37 +8,54 @@ import '../data/repositories/course_repository.dart';
 class CourseStore extends ChangeNotifier {
   CourseStore({required CourseRepository repository})
       : _repository = repository {
-    _courses = _repository.list();
+    _subscribe();
   }
 
-  final CourseRepository _repository;
-  late List<Course> _courses;
+  CourseRepository _repository;
+  StreamSubscription<List<Course>>? _subscription;
+  List<Course> _courses = const [];
 
   List<Course> get courses => List.unmodifiable(_courses);
 
-  void refresh() {
-    _courses = _repository.list();
+  void _subscribe() {
+    _subscription?.cancel();
+    _subscription = _repository.watch().listen((items) {
+      _courses = items;
+      notifyListeners();
+    });
+  }
+
+  Future<void> useRepository(CourseRepository repository) async {
+    _repository = repository;
+    _subscribe();
+    await refresh();
+  }
+
+  Future<void> refresh() async {
+    _courses = await _repository.list();
     notifyListeners();
   }
 
-  Course create(CourseDraft draft) {
-    final created = _repository.create(draft);
-    refresh();
+  Future<Course> create(CourseDraft draft) async {
+    final created = await _repository.create(draft);
+    await refresh();
     return created;
   }
 
-  void update(Course course) {
-    _repository.update(course);
-    refresh();
+  Future<void> update(Course course) async {
+    await _repository.update(course);
+    await refresh();
   }
 
-  void checkIn(String courseId, DateTime sessionStart, {bool makeUp = false}) {
+  Future<void> checkIn(String courseId, DateTime sessionStart,
+      {bool makeUp = false}) async {
     final index = _courses.indexWhere((c) => c.id == courseId);
     if (index == -1) return;
     final course = _courses[index];
 
     // 已经打过卡则忽略
-    final dateOnly = DateTime(sessionStart.year, sessionStart.month, sessionStart.day);
+    final dateOnly =
+        DateTime(sessionStart.year, sessionStart.month, sessionStart.day);
     final hasAttended = course.attendanceRecords.any((r) =>
         r.status == AttendanceStatus.attended &&
         r.sessionStart.year == dateOnly.year &&
@@ -60,10 +79,10 @@ class CourseStore extends ChangeNotifier {
       ),
     );
 
-    update(updated);
+    await update(updated);
   }
 
-  void removeCheckIn(String courseId, DateTime sessionStart) {
+  Future<void> removeCheckIn(String courseId, DateTime sessionStart) async {
     final index = _courses.indexWhere((c) => c.id == courseId);
     if (index == -1) return;
     final course = _courses[index];
@@ -92,10 +111,11 @@ class CourseStore extends ChangeNotifier {
       consumedLessons: newConsumed,
       attendanceRecords: updatedRecords,
     );
-    update(updated);
+    await update(updated);
   }
 
-  void setLeave(String courseId, DateTime sessionStart, {required bool leave}) {
+  Future<void> setLeave(String courseId, DateTime sessionStart,
+      {required bool leave}) async {
     final index = _courses.indexWhere((c) => c.id == courseId);
     if (index == -1) return;
     final course = _courses[index];
@@ -120,7 +140,7 @@ class CourseStore extends ChangeNotifier {
     }
 
     final updated = course.copyWith(attendanceRecords: nextRecords);
-    update(updated);
+    await update(updated);
   }
 
   List<CourseAttendanceRecord> _upsertAttendance(
@@ -136,8 +156,14 @@ class CourseStore extends ChangeNotifier {
     return [...filtered, record];
   }
 
-  void delete(String id) {
-    _repository.delete(id);
-    refresh();
+  Future<void> delete(String id) async {
+    await _repository.delete(id);
+    await refresh();
+  }
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
   }
 }

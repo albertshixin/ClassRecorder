@@ -31,6 +31,10 @@
 
   <title>lesson_tracker_pro</title>
   <link rel="manifest" href="manifest.json">
+  <script>
+    // Force HTML renderer to avoid CanvasKit fetching fonts from Google CDN (offline/local dev).
+    window.flutterWebRenderer = "html";
+  </script>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>

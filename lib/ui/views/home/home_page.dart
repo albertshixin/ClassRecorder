@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 
 import '../../../core/app_scope.dart';
+import '../account/account_page.dart';
 import '../../../data/models/course.dart';
 import '../../widgets/course_card.dart';
 import '../attendance/course_attendance_page.dart';
@@ -77,6 +78,13 @@ class _HomePageState extends State<HomePage> {
               icon: const Icon(Icons.search),
               tooltip: '搜索课程',
             ),
+          IconButton(
+            onPressed: () {
+              Navigator.of(context).pushNamed(AccountPage.routeName);
+            },
+            icon: const Icon(Icons.account_circle_outlined),
+            tooltip: '账号与安全',
+          ),
         ],
       ),
       body: SafeArea(
@@ -128,7 +136,7 @@ class _HomePageState extends State<HomePage> {
                             Expanded(
                               child: FilledButton(
                                 onPressed: canCheckIn
-                                    ? () => _checkIn(context, course, hasAttendedToday)
+                                    ? () async => _checkIn(context, course, hasAttendedToday)
                                     : null,
                                 child: Text(hasAttendedToday ? '已打卡' : '打卡'),
                               ),
@@ -265,7 +273,7 @@ class _HomePageState extends State<HomePage> {
     return false;
   }
 
-  void _checkIn(BuildContext context, Course course, bool hasAttendedToday) {
+  Future<void> _checkIn(BuildContext context, Course course, bool hasAttendedToday) async {
     final store = AppScope.of(context);
     if (hasAttendedToday) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -276,7 +284,7 @@ class _HomePageState extends State<HomePage> {
     final now = DateTime.now();
     final sessions = course.schedule.sessionsOnDay(now);
     if (sessions.isEmpty) return;
-    store.checkIn(course.id, sessions.first);
+    await store.checkIn(course.id, sessions.first);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('打卡成功，课时 -1')),
     );
@@ -447,3 +455,4 @@ class _FilterChip extends StatelessWidget {
     );
   }
 }
+

@@ -607,7 +607,7 @@ class _CourseCreatePageState extends State<CourseCreatePage> {
     });
   }
 
-  void _onSubmit() {
+  Future<void> _onSubmit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     if (!_validateSchedule()) return;
@@ -621,7 +621,7 @@ class _CourseCreatePageState extends State<CourseCreatePage> {
 
     final store = AppScope.of(context);
     final endDate = _computeEndDate();
-    store.create(
+    await store.create(
       CourseDraft(
         title: title,
         category: _category,
@@ -717,4 +717,5 @@ class _SectionTitle extends StatelessWidget {
     );
   }
 }
+
 

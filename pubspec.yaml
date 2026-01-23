@@ -10,6 +10,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  supabase_flutter: ^2.9.1
 
 # Keep dependencies minimal for now; add as we implement features.
 
@@ -24,12 +25,8 @@ flutter:
     - assets/images/app_logo.png
     - assets/images/logo.png
     - assets/icons/
+    - assets/fonts/
   fonts:
     - family: NotoSansSC
       fonts:
-        - asset: web/assets/fonts/NotoSansSC-113.woff2
-        - asset: web/assets/fonts/NotoSansSC-115.woff2
-        - asset: web/assets/fonts/NotoSansSC-116.woff2
-        - asset: web/assets/fonts/NotoSansSC-117.woff2
-        - asset: web/assets/fonts/NotoSansSC-118.woff2
-        - asset: web/assets/fonts/NotoSansSC-119.woff2
+        - asset: assets/fonts/NotoSansCJKsc-VF.ttf

@@ -1,8 +1,9 @@
 ﻿import '../models/course.dart';
 
 abstract class CourseRepository {
-  List<Course> list();
-  Course create(CourseDraft draft);
-  void update(Course course);
-  void delete(String id);
+  Future<List<Course>> list();
+  Stream<List<Course>> watch();
+  Future<Course> create(CourseDraft draft);
+  Future<void> update(Course course);
+  Future<void> delete(String id);
 }
